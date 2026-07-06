@@ -7,6 +7,21 @@ from singer_sdk.exceptions import FatalAPIError
 from target_vendit.client import VenditSink
 
 
+def _first_present(*values):
+    """Return the first value that is not None or empty string."""
+    for value in values:
+        if value is not None and value != "":
+            return value
+    return None
+
+
+def _coerce_price(value):
+    """Convert a price-like value to float, preserving explicit zero."""
+    if value is None or value == "":
+        return None
+    return float(value)
+
+
 class PrePurchaseOrders(VenditSink):
     """PrePurchaseOrders sink for Vendit API."""
 
@@ -102,9 +117,20 @@ class PrePurchaseOrders(VenditSink):
             "amount": int(amount),
             "creationDatetime": creation_datetime,
         }
+
+        price = _coerce_price(
+            _first_present(
+                record.get("purchasePriceEx"),
+                record.get("unit_price"),
+                record.get("price"),
+                record.get("purchase_price"),
+            )
+        )
+        if price is not None:
+            item["purchasePriceEx"] = price
+
         if optiply_id:
             item["optiplyId"] = str(optiply_id)
-            item["orderReference"] = str(optiply_id)
 
         items.append(item)
 
@@ -223,6 +249,13 @@ class BuyOrders(VenditSink):
             or record.get("id")
         )
 
+        # Get target supplier ID from buy order
+        target_supplier_id = (
+            record.get("targetSupplierId")
+            or record.get("target_supplier_id")
+            or record.get("supplier_remoteId")
+        )
+
         # Process each line item as a separate request
         for line_item in line_items:
             # Get productId
@@ -251,9 +284,30 @@ class BuyOrders(VenditSink):
                 "amount": int(amount),
                 "creationDatetime": creation_datetime,
             }
+
+            price = _coerce_price(
+                _first_present(
+                    line_item.get("purchasePriceEx"),
+                    line_item.get("unit_price"),
+                    line_item.get("price"),
+                    line_item.get("purchase_price"),
+                )
+            )
+            if price is not None:
+                item["purchasePriceEx"] = price
+
             if optiply_id:
                 item["optiplyId"] = str(optiply_id)
                 item["orderReference"] = str(optiply_id)
+            
+            # Add target supplier ID
+            if target_supplier_id:
+                item["targetSupplierId"] = int(target_supplier_id)
+
+            # Add office ID if configured (default warehouse for buy order export)
+            office_id = self.config.get("default_export_buyOrder_warehouseId")
+            if office_id is not None:
+                item["officeId"] = int(office_id)
 
             # Send each line item as a separate request
             single_item_payload = {"items": [item]}
