@@ -60,6 +60,8 @@ def test_buy_orders_maps_line_item_unit_price_to_vendit_purchase_price_ex():
     )
 
     assert [payload["items"][0]["purchasePriceEx"] for payload in sink.payloads] == [145.0, 3.5]
+    assert "onetimePurchasePrice" not in sink.payloads[0]["items"][0]
+    assert "price" not in sink.payloads[0]["items"][0]
     assert sink.payloads[0]["items"][0]["targetSupplierId"] == 456
 
 
@@ -77,3 +79,5 @@ def test_pre_purchase_orders_maps_unit_price_to_vendit_purchase_price_ex():
     )
 
     assert payload["items"][0]["purchasePriceEx"] == 0.0
+    assert "onetimePurchasePrice" not in payload["items"][0]
+    assert "price" not in payload["items"][0]

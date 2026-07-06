@@ -120,6 +120,7 @@ class PrePurchaseOrders(VenditSink):
 
         price = _coerce_price(
             _first_present(
+                record.get("purchasePriceEx"),
                 record.get("unit_price"),
                 record.get("price"),
                 record.get("purchase_price"),
@@ -130,7 +131,6 @@ class PrePurchaseOrders(VenditSink):
 
         if optiply_id:
             item["optiplyId"] = str(optiply_id)
-            item["orderReference"] = str(optiply_id)
 
         items.append(item)
 
@@ -287,6 +287,7 @@ class BuyOrders(VenditSink):
 
             price = _coerce_price(
                 _first_present(
+                    line_item.get("purchasePriceEx"),
                     line_item.get("unit_price"),
                     line_item.get("price"),
                     line_item.get("purchase_price"),
@@ -298,7 +299,7 @@ class BuyOrders(VenditSink):
             if optiply_id:
                 item["optiplyId"] = str(optiply_id)
                 item["orderReference"] = str(optiply_id)
-
+            
             # Add target supplier ID
             if target_supplier_id:
                 item["targetSupplierId"] = int(target_supplier_id)
